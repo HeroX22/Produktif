@@ -6,6 +6,6 @@
 2. buat copy templatenya `git clone https://github.com/HeroX22/Produktif`
 
 # cara pake nya
-1. `cd` buat ngubah directory, contoh : `cd /ulangan`
+1. `cd` buat ngubah directory, contoh : `cd ulangan`
 2. `chmod +x <namafile>.sh` supaya file bisa di eksekusi
 3. `./<namafile.sh` buat ngejalanin templatenya
