@@ -2,7 +2,7 @@
 1. git
 
 # setup
-1. buat nginstall git `apt install git`
+1. buat nginstall git `sudo apt install git`
 2. buat copy templatenya `git clone https://github.com/HeroX22/Produktif`
 
 # cara pake nya
