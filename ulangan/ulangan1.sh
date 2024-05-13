@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ##Update & donwload package lists
-sudo apt update && sudo apt upgrade
-sudo apt install openssh-server
-sudo apt install apache2
+sudo apt update && sudo apt upgrade -y
+sudo apt install openssh-server -y
+sudo apt install apache2 -y
 
 ## setting repo (1)
 #change directory
@@ -38,7 +38,7 @@ cd /etc/ssh
 file="sshd_config"
 # Nomor baris yang akan diubah
 nomor_baris_port=14
-nomor_baris_permit_root=37
+nomor_baris_permit_root=34
 # Menghapus karakter '#' pada baris ke-14
 sed -i "${nomor_baris_port}s/^#//" $file
 # Meminta pengguna untuk memasukkan nomor Port baru
@@ -51,8 +51,7 @@ sed -i "${nomor_baris_permit_root}i PermitRootLogin yes" $file
 
 ##web service
 service apache2 start
-service apache2 status
-
+#service apache2 status
 
 ##reboot 
 echo "sebelum mengisi pesan reboot, silahkan di cek apakah apache2 nya nyala atau ngak"
