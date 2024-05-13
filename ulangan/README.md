@@ -1,4 +1,4 @@
-#cara pakai
+# cara pakai
 1. untuk memberikan izin `chmod +x <namafile>.sh`
 2. ngejalanin template `./<namafile>.sh`
 
