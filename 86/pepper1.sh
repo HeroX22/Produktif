@@ -10,17 +10,9 @@ sudo apt install apache2 -y
 cd /etc/apt 
 # Repository link
 teks_baru="
-deb http://deb.debian.org/debian bullseye main contrib non-free
-deb-src http://deb.debian.org/debian bullseye main contrib non-free
-
-deb http://deb.debian.org/debian bullseye-updates main contrib non-free
-deb-src http://deb.debian.org/debian bullseye-updates main contrib non-free
-
-deb http://deb.debian.org/debian bullseye-backports main contrib non-free
-deb-src http://deb.debian.org/debian bullseye-backports main contrib non-free
-
-deb http://security.debian.org/debian-security/ bullseye-security main contrib non-free
-deb-src http://security.debian.org/debian-security/ bullseye-security main contrib non-free
+deb http://kartolo.sby.datautama.net.id/debian/ bullseye main contrib non-free
+deb http://kartolo.sby.datautama.net.id/debian/ bullseye-updates main contrib non-free
+deb http://kartolo.sby.datautama.net.id/debian-security/ bullseye/updates main contrib non-free
 "
 # Menambahkan link repo ke file sources.txt
 sudo echo "$teks_baru" >> sources.list
