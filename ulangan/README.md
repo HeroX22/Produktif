@@ -6,4 +6,4 @@
 2. pastikan kalian dalam mode root / superuser, cara masuk ke mode root / super user adalah `sudo su`
 3. ngejalanin template `./<namafile>.sh`
 
-<namafile> cuman sementara, <namafile> ubah menjadi nama file aslinya
+`<namafile>` cuman sementara, `<namafile>` ubah menjadi nama file aslinya
