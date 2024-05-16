@@ -45,6 +45,13 @@ sed -i "${nomor_baris_permit_root}i PermitRootLogin yes" $file
 service apache2 start
 #service apache2 status
 
+##ubah pw root
+sudo passwd root
+echo "masukan pw untuk akun root:"
+read new_pass
+echo "$new_pass"
+echo "$new_pass"
+
 ##reboot 
 echo "sebelum mengisi pesan reboot, silahkan di cek apakah apache2 nya nyala atau ngak"
 echo "Apakah Anda ingin me-reboot komputer? (y/n)"
