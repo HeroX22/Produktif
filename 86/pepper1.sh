@@ -47,10 +47,6 @@ service apache2 start
 
 ##ubah pw root
 sudo passwd root
-echo "masukan pw untuk akun root:"
-read new_pass
-echo "$new_pass"
-echo "$new_pass"
 
 ##reboot 
 echo "sebelum mengisi pesan reboot, silahkan di cek apakah apache2 nya nyala atau ngak"
