@@ -40,6 +40,8 @@ read port_number
 sed -i "${nomor_baris_port}s/22/$port_number/" $file
 # Menambahkan konfigurasi "PermitRootLogin yes" pada baris ke-37
 sed -i "${nomor_baris_permit_root}i PermitRootLogin yes" $file
+#restart service
+service ssh restart
 
 ##web service
 service apache2 start
