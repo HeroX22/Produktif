@@ -3,7 +3,8 @@
 ##Update & donwload package lists
 sudo apt update && sudo apt upgrade -y
 sudo apt install openssh-server -y
-sudo apt install apache2 -y
+#sudo apt install apache2 -y
+sudo apt install mariadb-server -y
 
 ## setting repo (1)
 #change directory
