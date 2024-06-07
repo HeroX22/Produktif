@@ -1,6 +1,11 @@
 # Info
 template yang dipakai untuk belajar,
 
+# cara pakai
+1. `sudo su`
+2. `chmod +x *`
+3. `./<namafile>`
+
 # Materi
 ada beberapa materi sebagai berikut :
 ## install
