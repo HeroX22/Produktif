@@ -50,6 +50,20 @@ function change_database() {
     mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "USE $MYSQL_DATABASE;"
 }
 
+# Fungsi untuk menghapus tabel
+function show_tables() {
+    mysql -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "SHOW TABLES;"
+}
+
+# Fungsi untuk menghapus tabel
+function describe_table() {
+    echo "Masukkan nama tabel yang ingin dilihat:"
+    read table_name
+
+    echo "detail tabel $table_name..."
+    mysql -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "DESCRIBE $table_name;"
+}
+
 # Fungsi untuk membuat tabel
 function create_table() {
     echo "Masukkan nama tabel:"
@@ -198,8 +212,10 @@ function show_database_menu() {
 # Fungsi untuk menampilkan menu tabel
 function show_table_menu() {
     echo "**Menu Tabel MariaDB**"
-    echo "1. Buat tabel"
-    echo "2. Hapus tabel"
+    echo "1. lihat tabel"
+    echo "2. tentang tabel"
+    echo "3. Buat tabel"
+    echo "3. Hapus tabel"
     echo "0. Kembali ke menu database"
 }
 
@@ -242,6 +258,7 @@ while true; do
             ;;
         4)
             clear
+            show_databases
             change_database
             echo ""
             while true; do
@@ -251,11 +268,24 @@ while true; do
                 case $table_option in
                     1)
                         clear
-                        create_table
+                        show_tables
                         echo ""
                         ;;
                     2)
                         clear
+                        show_tables
+                        describe_table
+                        echo ""
+                        ;;
+
+                    3)
+                        clear
+                        create_table
+                        echo ""
+                        ;;
+                    4)
+                        clear
+                        show_tables
                         delete_table
                         echo ""
                         ;;
