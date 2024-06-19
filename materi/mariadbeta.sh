@@ -240,7 +240,7 @@ show_database_menu
 while true; do
     read -p "Pilih opsi: " option
 
-    case $option in \n
+    case $option in
         1)
             clear
             show_databases
