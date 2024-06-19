@@ -163,6 +163,7 @@ function insert_data() {
     
     echo "Memasukkan data ke tabel $table_name..."
     mysql -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "$sql_insert"
+    echo $sql_insert
 }
 
 # Fungsi untuk mengupdate data tabel
