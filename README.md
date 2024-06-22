@@ -1,5 +1,3 @@
-https://docs.google.com/spreadsheets/d/11LGD_cW-m6_Hemhu87YmckHznY7sZQVW3_9VZKlnJLQ/edit#gid=0
-
 # yang dibutuhkan
 1. git
 
