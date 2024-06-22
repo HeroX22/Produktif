@@ -17,6 +17,6 @@ ada beberapa materi sebagai berikut :
 ## ssh
 `ssh.sh` berguna untuk membuat fitur ssh secara cepat dan otomatis
 ## mariadb
-`mariadb.sh` alat cepat CRUD database, tabel, data. support by : @KevinAdhaikal
+`mariadb.sh` alat cepat CRUD database, tabel, data. support by : @Github/KevinAdhaikal
 
 # incoming
