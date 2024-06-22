@@ -15,6 +15,8 @@ ada beberapa materi sebagai berikut :
 ## repo
 `repo.sh` berguna untuk merubah repo secara otomatis
 ## ssh
-`ssh.sh` berguna unutk membuat fitur ssh secara cepat dan otomatis
+`ssh.sh` berguna untuk membuat fitur ssh secara cepat dan otomatis
+## mariadb
+`mariadb.sh` alat cepat CRUD database, tabel, data. support by : @KevinAdhaikal
 
 # incoming
