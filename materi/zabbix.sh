@@ -2,12 +2,12 @@
 MYSQL_USER="root"
 MYSQL_PASSWORD=""
 
-wget https://repo.zabbix.com/zabbix/7.0/debian/pool/main/z/zabbix-release/zabbix-release_7.0-2+debian12_all.deb
-dpkg -i zabbix-release_7.0-2+debian12_all.deb
-apt update
-apt install apache2 mariadb-server php libapache2-mod-php
+wget https://repo.zabbix.com/zabbix/7.0/debian/pool/main/z/zabbix-release/zabbix-release_7.0-2+debian12_all.deb #kalo bukan debian tinggal ganti link
+dpkg -i zabbix-release_7.0-2+debian12_all.deb #sama dpkgnya
+apt update -y
+apt install apache2 mariadb-server php libapache2-mod-php -y
 service mariadb start
-apt install zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent
+apt install zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent -y
 
 mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "create database zabbix character set utf8mb4 collate utf8mb4_bin;"
 mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "create user zabbix@localhost identified by '';"
@@ -21,3 +21,11 @@ sed -i "130i DBPassword=" /etc/zabbix/zabbix_server.conf
 
 systemctl restart zabbix-server zabbix-agent apache2
 systemctl enable zabbix-server zabbix-agent apache2
+
+clear
+
+echo """installasi zabbix sudah selesai
+username : Admin
+password : zabbix
+user zabbix password :
+"""
