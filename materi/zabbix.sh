@@ -2,8 +2,10 @@
 MYSQL_USER="root"
 MYSQL_PASSWORD=""
 
-wget https://repo.zabbix.com/zabbix/7.0/debian/pool/main/z/zabbix-release/zabbix-release_7.0-2+debian12_all.deb #kalo bukan debian tinggal ganti link
-dpkg -i zabbix-release_7.0-2+debian12_all.deb #sama dpkgnya
+#wget https://repo.zabbix.com/zabbix/7.0/debian/pool/main/z/zabbix-release/zabbix-release_7.0-2+debian12_all.deb #kalo bukan debian tinggal ganti link, (debian)
+wget https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.0-2+ubuntu24.04_all.deb #ubuntu
+#dpkg -i zabbix-release_7.0-2+debian12_all.deb #sama dpkgnya
+dpkg -i zabbix-release_7.0-2+ubuntu24.04_all.deb
 apt update -y
 apt install apache2 mariadb-server php libapache2-mod-php -y
 service mariadb start
