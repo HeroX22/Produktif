@@ -6,6 +6,8 @@ sudo rm -R mikhmonv3/
 sudo chown www-data:www-data -R *
 service apache2 restart
 
+exit
+
 INTERFACE="eth0"
 IP_ADDRESS=$(ip addr show $INTERFACE | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1)
 firefox http://$IP_ADDRESS &
