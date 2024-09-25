@@ -7,6 +7,7 @@ if [ "$arsitektur" = "amd64" ] || [ "$arsitektur" = "arm64" ]; then
     sudo dpkg --add-architecture i386
 else
     echo "Sistem bukan 64-bit. Tidak ada tindakan yang diambil."
+    exit 1  # Keluar jika sistem bukan 64-bit
 fi
 
 sudo mkdir -pm755 /etc/apt/keyrings
@@ -27,6 +28,7 @@ elif [[ $version_id == 20.04 ]] || [[ $version_id == 20.* ]]; then
     sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/focal/winehq-focal.sources
 else
     echo "Versi sistem tidak cocok. Tidak ada tindakan yang diambil."
+    exit 1  # Keluar jika sistem bukan 64-bit
 fi
 
 sudo apt update
