@@ -30,13 +30,15 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 PrivateUsers=false
 EOL
 
+        echo 'installasi selesai, buka dengan cara IP:3000'
+        
     elif [ "$user_input_config" = "2" ]; then
         sudo service grafana-server start
         sudo update-rc.d grafana-server defaults
         sudo service grafana-server restart
         # The next line is likely unnecessary since you already started the service.
         # ./bin/grafana server
-
+        echo 'installasi selesai, buka dengan cara IP:3000'
     else
         echo "input tidak valid, silahkan konfigurasi sendiri"
         exit 1
