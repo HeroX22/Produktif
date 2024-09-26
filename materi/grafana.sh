@@ -6,11 +6,11 @@ if [ "$user_input" = "install" ]; then
     wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
     echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
     sudo apt-get update
-    sudo apt-get install grafana
+    sudo apt-get install grafana -y
 elif [ "$user_input" = "delete" ]; then
     sudo systemctl stop grafana-server
     sudo service grafana-server stop
-    sudo apt-get remove grafana
+    sudo apt-get remove grafana -y
     sudo rm -i /etc/apt/sources.list.d/grafana.list  # Ganti -i dengan -f jika ingin tanpa konfirmasi
 else
     echo "input tidak valid"
