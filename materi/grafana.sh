@@ -1,4 +1,4 @@
-echo "ketik install untuk menginstal, ketik delete untuk uninstall atau menghapusnya"
+echo 'ketik "install" untuk menginstal, ketik "delete" untuk uninstall atau menghapusnya'
 read user_input
 
 if [ "$user_input" = "install" ]; then
@@ -9,7 +9,7 @@ if [ "$user_input" = "install" ]; then
     sudo apt-get update
     sudo apt-get install grafana -y
 
-    echo "configurasi bisa menggunakan systemd/systemctl(1) atau init.d/services(2)"
+    echo "configurasi bisa menggunakan systemd/systemctl(1) atau init.d/services(2), silahkan pilih nomernya (direkomendasikan untuk menggunakan 2"
     read user_input_config
     
     if [ "$user_input_config" = "1" ]; then
@@ -35,7 +35,7 @@ EOL
         sudo update-rc.d grafana-server defaults
         sudo service grafana-server restart
         # The next line is likely unnecessary since you already started the service.
-        ./bin/grafana server
+        # ./bin/grafana server
 
     else
         echo "input tidak valid, silahkan konfigurasi sendiri"
