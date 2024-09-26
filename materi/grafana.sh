@@ -1,4 +1,4 @@
-echo "ketik "install" untuk menginstsall, ketik "delete" untuk uninstall atau menghapusnya"
+echo "ketik `install` untuk menginstsall, ketik `delete` untuk uninstall atau menghapusnya"
 read user_input
 if ["$user_input" = "install"]; then
     sudo apt-get install -y apt-transport-https software-properties-common wget
