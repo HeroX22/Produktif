@@ -9,7 +9,7 @@ if [ "$user_input" = "install" ]; then
     sudo apt-get update
     sudo apt-get install grafana -y
 
-    echo "configurasi bisa menggunakan systemd/systemctl(1) atau init.d/services(2), silahkan pilih nomernya (direkomendasikan untuk menggunakan 2"
+    echo "configurasi bisa menggunakan systemd/systemctl(1) atau init.d/services(2), silahkan pilih nomernya (direkomendasikan untuk menggunakan 2)"
     read user_input_config
     
     if [ "$user_input_config" = "1" ]; then
