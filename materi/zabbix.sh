@@ -9,12 +9,12 @@ service mysql start
 apt install zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent -y
 
 mysql -u $MYSQL_USER -e "create database zabbix character set utf8mb4 collate utf8mb4_bin;"
-mysql -u $MYSQL_USER -e "create user zabbix@localhost identified by '';"
+mysql -u $MYSQL_USER -e "create user zabbix@localhost identified by 'zabbix';"
 mysql -u $MYSQL_USER -e "grant all privileges on zabbix.* to zabbix@localhost;"
 mysql -u $MYSQL_USER -e "set global log_bin_trust_function_creators = 1;"
 
 echo "masukan zabbix"
-zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u zabbix -p
+zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u zabbix -p zabbix
 
 mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "set global log_bin_trust_function_creators = 0;"
 sed -i "130i DBPassword=" /etc/zabbix/zabbix_server.conf
