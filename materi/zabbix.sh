@@ -10,11 +10,12 @@ service mariadb start
 apt install zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent -y
 
 mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "create database zabbix character set utf8mb4 collate utf8mb4_bin;"
-mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "create user zabbix@localhost identified by '';"
+mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "create user zabbix@localhost identified by 'zabbix';"
 mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "grant all privileges on zabbix.* to zabbix@localhost;"
 mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "set global log_bin_trust_function_creators = 1;"
 
-zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u zabbix -p
+echo "masukan zabbix"
+zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u zabbix -p zabbix
 
 mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "set global log_bin_trust_function_creators = 0;"
 sed -i "130i DBPassword=" /etc/zabbix/zabbix_server.conf
@@ -27,5 +28,5 @@ clear
 echo "installasi zabbix sudah selesai
 username : Admin
 password : zabbix
-user zabbix password : 
+user zabbix password : zabbix
 "
