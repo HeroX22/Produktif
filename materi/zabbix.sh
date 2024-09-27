@@ -5,7 +5,7 @@ MYSQL_PASSWORD=""
 wget https://repo.zabbix.com/zabbix/6.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.4-1+ubuntu24.04_all.deb
 dpkg -i zabbix-release_6.4-1+ubuntu24.04_all.deb
 apt update -y
-apt install apache2 mariadb-server php libapache2-mod-php -y
+apt install apache2 mysql-server php libapache2-mod-php -y
 service mariadb start
 apt install zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent -y
 
