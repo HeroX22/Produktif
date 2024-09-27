@@ -6,7 +6,7 @@ wget https://repo.zabbix.com/zabbix/6.4/ubuntu/pool/main/z/zabbix-release/zabbix
 dpkg -i zabbix-release_6.4-1+ubuntu24.04_all.deb
 apt update -y
 apt install apache2 mysql-server php libapache2-mod-php -y
-service mariadb start
+service mysql start
 apt install zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent -y
 
 mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "create database zabbix character set utf8mb4 collate utf8mb4_bin;"
