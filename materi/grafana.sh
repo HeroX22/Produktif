@@ -16,7 +16,7 @@ if [ "$user_input" = "install" ]; then
         sudo systemctl daemon-reload
         sudo systemctl start grafana-server
         sudo systemctl enable grafana-server.service
-        sudo systemctl enable grafana-server
+        # sudo systemctl enable grafana-server
         sudo mkdir -p /etc/systemd/system/grafana-server.service.d/
         sudo touch /etc/systemd/system/grafana-server.service.d/override.conf
         
@@ -31,6 +31,7 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 PrivateUsers=false
 EOL
 
+        sudo systemctl enable grafana-server
         echo 'installasi selesai, buka dengan cara IP:3000'
         
     elif [ "$user_input_config" = "2" ]; then
