@@ -34,4 +34,4 @@ fi
 sudo apt update
 sudo apt install --install-recommends winehq-stable
 
-echo "cara pakenya tinggal tulis "wine <nama file yang mau di install>"
+echo "Installasi selesai"
