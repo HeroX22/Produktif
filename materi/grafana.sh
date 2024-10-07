@@ -8,7 +8,7 @@ if [ "$user_input" = "install" ]; then
     echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
     sudo apt-get update
 #    sudo apt-get install grafana -y
-    sudo apt-get install grafana=10.3.7 -y
+    sudo apt-get install grafana=10.1.10 -y
     
     echo "configurasi bisa menggunakan systemd/systemctl(1) atau init.d/services(2), silahkan pilih nomernya (direkomendasikan untuk menggunakan 2)"
     read user_input_config
