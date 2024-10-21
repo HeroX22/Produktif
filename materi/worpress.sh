@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Mencetak "made by HeroX" sepuluh kali
-for i in {1..10}; do
+for i in {1..7}; do
     echo "made by HeroX"
 done
-sleep 2
+sleep 1
 clear
 
 MYSQL_USER="root"
