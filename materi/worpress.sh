@@ -4,7 +4,7 @@
 for i in {1..10}; do
     echo "made by HeroX"
 done
-sleep 3
+sleep 2
 clear
 
 MYSQL_USER="root"
