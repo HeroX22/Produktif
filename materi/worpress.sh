@@ -11,7 +11,7 @@ MYSQL_USER="root"
 sudo apt-get update -y && sudo apt-get upgrade -y
 sudo apt install apache2 -y
 sudo systemctl enable apache2 && sudo systemctl start apache2
-apt install mariadb-server libapache2-mod-php unzip -y
+sudo apt install mariadb-server libapache2-mod-php unzip -y
 sudo apt install php php-cli php-common php-gd php-xmlrpc php-fpm php-curl php-intl php-imagick php-mysql php-zip  php-xml php-mbstring php-bemath -y
 sudo systemctl start mariadb && sudo systemctl enable mariadb
 
