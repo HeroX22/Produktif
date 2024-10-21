@@ -39,8 +39,6 @@ sed -i -e "s/'database_name_here'/'wordpress'/g" \
 
 service apache2 restart
 
-#!/bin/bash
-
 # Mendapatkan IP lokal
 local_ip=$(hostname -I | awk '{print $1}')
 
