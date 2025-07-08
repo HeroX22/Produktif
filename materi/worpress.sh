@@ -3,6 +3,7 @@
 # WordPress Auto Installer Script
 # Improved version with better error handling and security
 # Compatible with Ubuntu/Debian systems
+# Modified to allow custom password input
 
 set -e  # Exit on any error
 
@@ -18,6 +19,7 @@ MYSQL_USER="root"
 WP_DB_NAME="wordpress"
 WP_DB_USER="wordpress"
 WP_DB_PASS=""
+MYSQL_ROOT_PASS=""
 WP_DIR="/var/www/html"
 APACHE_USER="www-data"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -69,6 +71,47 @@ check_os() {
 # Function to generate secure password
 generate_password() {
     openssl rand -base64 32 | tr -d "=+/" | cut -c1-16
+}
+
+# Function to get user input for passwords
+get_user_input() {
+    print_header "KONFIGURASI PASSWORD"
+    
+    # Get MySQL root password
+    echo -e "${BLUE}Password untuk MySQL root:${NC}"
+    echo -e "${YELLOW}Tips: Kosongkan jika ingin tanpa password (tidak disarankan untuk production)${NC}"
+    read -p "Masukkan password MySQL root (tekan Enter untuk kosong): " MYSQL_ROOT_PASS
+    
+    if [[ -z "$MYSQL_ROOT_PASS" ]]; then
+        print_warning "MySQL root akan tanpa password"
+    else
+        print_status "MySQL root password telah diset"
+    fi
+    
+    # Get WordPress database password
+    echo -e "${BLUE}Password untuk database WordPress:${NC}"
+    echo -e "${YELLOW}Tips: Kosongkan jika ingin tanpa password (tidak disarankan untuk production)${NC}"
+    read -p "Masukkan password database WordPress (tekan Enter untuk kosong): " WP_DB_PASS
+    
+    if [[ -z "$WP_DB_PASS" ]]; then
+        print_warning "Database WordPress akan tanpa password"
+    else
+        print_status "Database WordPress password telah diset"
+    fi
+    
+    # Optional: Set custom database name and username
+    echo -e "${BLUE}Konfigurasi database (opsional):${NC}"
+    read -p "Nama database WordPress [default: wordpress]: " INPUT_DB_NAME
+    if [[ -n "$INPUT_DB_NAME" ]]; then
+        WP_DB_NAME="$INPUT_DB_NAME"
+    fi
+    
+    read -p "Username database WordPress [default: wordpress]: " INPUT_DB_USER
+    if [[ -n "$INPUT_DB_USER" ]]; then
+        WP_DB_USER="$INPUT_DB_USER"
+    fi
+    
+    print_status "Konfigurasi: Database=$WP_DB_NAME, User=$WP_DB_USER"
 }
 
 # Function to backup existing files
@@ -132,20 +175,17 @@ install_packages() {
 
 # Function to secure MariaDB installation
 secure_mariadb() {
-    print_header "MENGAMANKAN INSTALASI MARIADB"
+    print_header "MENGKONFIGURASI MARIADB"
     
-    # Generate secure root password if not set
-    if [[ -z "$MYSQL_ROOT_PASS" ]]; then
-        MYSQL_ROOT_PASS=$(generate_password)
-        print_status "Password root MySQL yang dibuat: $MYSQL_ROOT_PASS"
-    fi
-    
-    # Check MariaDB version and use appropriate syntax
+    # Check MariaDB version
     MARIADB_VERSION=$(mysql --version | grep -oP 'Distrib \K[0-9]+\.[0-9]+')
     print_status "MariaDB version detected: $MARIADB_VERSION"
     
-    # Secure MariaDB installation using modern syntax
-    mysql -u root << EOF
+    if [[ -n "$MYSQL_ROOT_PASS" ]]; then
+        print_status "Mengset password root MySQL..."
+        
+        # Set root password using modern syntax
+        mysql -u root << EOF
 -- Set root password using ALTER USER (MariaDB 10.4+)
 ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PASS';
 
@@ -162,13 +202,13 @@ DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 -- Reload privilege tables
 FLUSH PRIVILEGES;
 EOF
-    
-    if [[ $? -eq 0 ]]; then
-        print_status "MariaDB berhasil diamankan"
-    else
-        print_warning "Gagal mengamankan MariaDB dengan ALTER USER, mencoba metode lama..."
-        # Fallback untuk versi lama
-        mysql -u root << EOF
+        
+        if [[ $? -eq 0 ]]; then
+            print_status "MariaDB berhasil dikonfigurasi dengan password"
+        else
+            print_warning "Gagal mengset password dengan ALTER USER, mencoba metode lama..."
+            # Fallback untuk versi lama
+            mysql -u root << EOF
 UPDATE mysql.user SET authentication_string=PASSWORD('$MYSQL_ROOT_PASS') WHERE User='root';
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
@@ -176,39 +216,73 @@ DROP DATABASE IF EXISTS test;
 DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 FLUSH PRIVILEGES;
 EOF
+        fi
+    else
+        print_status "Mengkonfigurasi MariaDB tanpa password root..."
+        
+        # Basic security without password
+        mysql -u root << EOF
+-- Remove anonymous users
+DELETE FROM mysql.user WHERE User='';
+
+-- Remove root login from remote hosts
+DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+
+-- Remove test database
+DROP DATABASE IF EXISTS test;
+DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+
+-- Reload privilege tables
+FLUSH PRIVILEGES;
+EOF
+        
+        print_status "MariaDB dikonfigurasi tanpa password root"
     fi
-    
-    # Update MySQL_USER variable for subsequent operations
-    MYSQL_USER="root"
 }
 
 # Function to setup WordPress database
 setup_database() {
     print_header "MENYIAPKAN DATABASE WORDPRESS"
     
-    # Generate secure password for WordPress database user
-    if [[ -z "$WP_DB_PASS" ]]; then
-        WP_DB_PASS=$(generate_password)
-        print_status "Password database WordPress yang dibuat: $WP_DB_PASS"
-    fi
-    
     # Create database and user
     if [[ -n "$MYSQL_ROOT_PASS" ]]; then
         # If root password is set, use it
-        mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASS" << EOF
+        if [[ -n "$WP_DB_PASS" ]]; then
+            # With WordPress database password
+            mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASS" << EOF
 CREATE DATABASE IF NOT EXISTS $WP_DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '$WP_DB_USER'@'localhost' IDENTIFIED BY '$WP_DB_PASS';
 GRANT ALL PRIVILEGES ON $WP_DB_NAME.* TO '$WP_DB_USER'@'localhost';
 FLUSH PRIVILEGES;
 EOF
+        else
+            # Without WordPress database password
+            mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASS" << EOF
+CREATE DATABASE IF NOT EXISTS $WP_DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '$WP_DB_USER'@'localhost';
+GRANT ALL PRIVILEGES ON $WP_DB_NAME.* TO '$WP_DB_USER'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+        fi
     else
-        # If no root password (fresh installation), connect without password
-        mysql -u "$MYSQL_USER" << EOF
+        # If no root password
+        if [[ -n "$WP_DB_PASS" ]]; then
+            # With WordPress database password
+            mysql -u "$MYSQL_USER" << EOF
 CREATE DATABASE IF NOT EXISTS $WP_DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '$WP_DB_USER'@'localhost' IDENTIFIED BY '$WP_DB_PASS';
 GRANT ALL PRIVILEGES ON $WP_DB_NAME.* TO '$WP_DB_USER'@'localhost';
 FLUSH PRIVILEGES;
 EOF
+        else
+            # Without WordPress database password
+            mysql -u "$MYSQL_USER" << EOF
+CREATE DATABASE IF NOT EXISTS $WP_DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '$WP_DB_USER'@'localhost';
+GRANT ALL PRIVILEGES ON $WP_DB_NAME.* TO '$WP_DB_USER'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+        fi
     fi
     
     if [[ $? -eq 0 ]]; then
@@ -421,8 +495,8 @@ Tanggal Instalasi: $(date)
 Database:
 - Nama Database: $WP_DB_NAME
 - Username Database: $WP_DB_USER
-- Password Database: $WP_DB_PASS
-- MySQL Root Password: $MYSQL_ROOT_PASS
+- Password Database: $(if [[ -n "$WP_DB_PASS" ]]; then echo "$WP_DB_PASS"; else echo "TANPA PASSWORD"; fi)
+- MySQL Root Password: $(if [[ -n "$MYSQL_ROOT_PASS" ]]; then echo "$MYSQL_ROOT_PASS"; else echo "TANPA PASSWORD"; fi)
 
 Akses Website:
 - IP Lokal: http://$LOCAL_IP
@@ -445,6 +519,7 @@ Catatan Keamanan:
 - Update WordPress secara berkala
 - Install plugin keamanan
 - Backup database secara rutin
+$(if [[ -z "$MYSQL_ROOT_PASS" || -z "$WP_DB_PASS" ]]; then echo "- SET PASSWORD untuk MySQL dan database WordPress (saat ini tanpa password)"; fi)
 EOF
     
     print_status "Informasi instalasi tersimpan di: $INFO_FILE"
@@ -453,10 +528,17 @@ EOF
     echo -e "${GREEN}║                    INSTALASI BERHASIL!                    ║${NC}"
     echo -e "${GREEN}╠═══════════════════════════════════════════════════════════╣${NC}"
     echo -e "${GREEN}║  Akses WordPress:                                         ║${NC}"
-    echo -e "${GREEN}║  • IP Lokal (untuk testing): http://$LOCAL_IP${NC}"
-    echo -e "${GREEN}║  • IP Publik (untuk produksi): http://$PUBLIC_IP${NC}"
+    echo -e "${GREEN}║  • IP Lokal: http://$LOCAL_IP${NC}"
+    echo -e "${GREEN}║  • IP Publik: http://$PUBLIC_IP${NC}"
     echo -e "${GREEN}║                                                           ║${NC}"
     echo -e "${GREEN}║  Info lengkap tersimpan di: $INFO_FILE${NC}"
+    
+    if [[ -z "$MYSQL_ROOT_PASS" || -z "$WP_DB_PASS" ]]; then
+        echo -e "${YELLOW}║                                                           ║${NC}"
+        echo -e "${YELLOW}║  PERINGATAN: Ada password yang kosong!                   ║${NC}"
+        echo -e "${YELLOW}║  Disarankan untuk mengset password setelah instalasi     ║${NC}"
+    fi
+    
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
 }
 
@@ -477,12 +559,15 @@ main() {
     touch "$LOG_FILE"
     
     print_header "WORDPRESS AUTO INSTALLER"
-    print_status "Memulai instalasi WordPress..."
+    print_status "WordPress Auto Installer dengan Custom Password"
     print_status "Log file: $LOG_FILE"
     
     # Pre-installation checks
     check_root
     check_os
+    
+    # Get user input for passwords
+    get_user_input
     
     # Main installation steps
     install_packages
