@@ -26,6 +26,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/var/log/wordpress-install.log"
 DB_RESTORE_PATH=""
 RESTORE_MODE=false
+WP_DOMAIN=""
 
 # Function to print colored output
 print_status() {
@@ -185,6 +186,17 @@ get_user_input() {
     
     print_status "Konfigurasi: Database=$WP_DB_NAME, User=$WP_DB_USER"
     
+    # Domain configuration
+    print_header "KONFIGURASI DOMAIN"
+    echo -e "${BLUE}Masukkan domain untuk WordPress (opsional):${NC}"
+    echo -e "${YELLOW}Kosongkan jika ingin menggunakan IP server${NC}"
+    read -p "Domain (misal: example.com): " WP_DOMAIN
+    if [[ -n "$WP_DOMAIN" ]]; then
+        print_status "Domain akan digunakan: $WP_DOMAIN"
+    else
+        print_status "Tidak ada domain, instalasi hanya via IP"
+    fi
+
     if [[ "$RESTORE_MODE" == true ]]; then
         print_status "File backup: $DB_RESTORE_PATH"
     fi
@@ -562,18 +574,28 @@ EOF
 configure_apache() {
     print_header "MENGKONFIGURASI APACHE"
     
+    # Pilih ServerName dan ServerAlias jika domain diisi
+    if [[ -n "$WP_DOMAIN" ]]; then
+        SERVER_NAME="$WP_DOMAIN"
+        SERVER_ALIAS="ServerAlias www.$WP_DOMAIN"
+    else
+        SERVER_NAME="localhost"
+        SERVER_ALIAS=""
+    fi
+
     # Create Apache virtual host configuration
     cat > /etc/apache2/sites-available/wordpress.conf << EOF
 <VirtualHost *:80>
-    ServerName localhost
+    ServerName $SERVER_NAME
+    $SERVER_ALIAS
     DocumentRoot $WP_DIR
-    
+
     <Directory $WP_DIR>
         Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
-    
+
     ErrorLog \${APACHE_LOG_DIR}/wordpress_error.log
     CustomLog \${APACHE_LOG_DIR}/wordpress_access.log combined
 </VirtualHost>
@@ -620,9 +642,8 @@ get_ip_addresses() {
 # Function to display final information
 display_final_info() {
     print_header "INSTALASI SELESAI"
-    
     get_ip_addresses
-    
+
     # Create info file
     INFO_FILE="/root/wordpress_info.txt"
     cat > "$INFO_FILE" << EOF
@@ -632,6 +653,8 @@ Tanggal Instalasi: $(date)
 Mode Instalasi: $(if [[ "$RESTORE_MODE" == true ]]; then echo "Restore dari backup"; else echo "Instalasi baru"; fi)
 $(if [[ "$RESTORE_MODE" == true ]]; then echo "File Backup: $DB_RESTORE_PATH"; fi)
 
+Domain: $(if [[ -n "$WP_DOMAIN" ]]; then echo "$WP_DOMAIN"; else echo "TIDAK ADA (hanya via IP)"; fi)
+
 Database:
 - Nama Database: $WP_DB_NAME
 - Username Database: $WP_DB_USER
@@ -639,6 +662,7 @@ Database:
 - MySQL Root Password: $(if [[ -n "$MYSQL_ROOT_PASS" ]]; then echo "$MYSQL_ROOT_PASS"; else echo "TANPA PASSWORD"; fi)
 
 Akses Website:
+$(if [[ -n "$WP_DOMAIN" ]]; then echo "- Domain: http://$WP_DOMAIN"; fi)
 - IP Lokal: http://$LOCAL_IP
 - IP Publik: http://$PUBLIC_IP
 
@@ -669,13 +693,16 @@ Catatan Keamanan:
 $(if [[ -z "$MYSQL_ROOT_PASS" || -z "$WP_DB_PASS" ]]; then echo "- SET PASSWORD untuk MySQL dan database WordPress (saat ini tanpa password)"; fi)
 $(if [[ "$RESTORE_MODE" == true ]]; then echo "- Verifikasi konfigurasi keamanan setelah restore"; fi)
 EOF
-    
+
     print_status "Informasi instalasi tersimpan di: $INFO_FILE"
     echo
     echo -e "${GREEN}╔═══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║                    INSTALASI BERHASIL!                    ║${NC}"
     echo -e "${GREEN}╠═══════════════════════════════════════════════════════════╣${NC}"
     echo -e "${GREEN}║  Akses WordPress:                                         ║${NC}"
+    if [[ -n "$WP_DOMAIN" ]]; then
+        echo -e "${GREEN}║  • Domain: http://$WP_DOMAIN${NC}"
+    fi
     echo -e "${GREEN}║  • IP Lokal: http://$LOCAL_IP${NC}"
     echo -e "${GREEN}║  • IP Publik: http://$PUBLIC_IP${NC}"
     echo -e "${GREEN}║                                                           ║${NC}"
@@ -684,13 +711,13 @@ EOF
         echo -e "${GREEN}║                                                           ║${NC}"
     fi
     echo -e "${GREEN}║  Info lengkap tersimpan di: $INFO_FILE${NC}"
-    
+
     if [[ -z "$MYSQL_ROOT_PASS" || -z "$WP_DB_PASS" ]]; then
         echo -e "${YELLOW}║                                                           ║${NC}"
         echo -e "${YELLOW}║  PERINGATAN: Ada password yang kosong!                   ║${NC}"
         echo -e "${YELLOW}║  Disarankan untuk mengset password setelah instalasi     ║${NC}"
     fi
-    
+
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
 }
 
