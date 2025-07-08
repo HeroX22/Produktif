@@ -3,7 +3,7 @@
 # WordPress Auto Installer Script
 # Improved version with better error handling and security
 # Compatible with Ubuntu/Debian systems
-# Modified to allow custom password input
+# Modified to allow custom password input and database restore
 
 set -e  # Exit on any error
 
@@ -24,6 +24,8 @@ WP_DIR="/var/www/html"
 APACHE_USER="www-data"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/var/log/wordpress-install.log"
+DB_RESTORE_PATH=""
+RESTORE_MODE=false
 
 # Function to print colored output
 print_status() {
@@ -73,8 +75,78 @@ generate_password() {
     openssl rand -base64 32 | tr -d "=+/" | cut -c1-16
 }
 
-# Function to get user input for passwords
+# Function to validate database backup file
+validate_backup_file() {
+    local backup_path="$1"
+    
+    if [[ ! -f "$backup_path" ]]; then
+        print_error "File backup tidak ditemukan: $backup_path"
+        return 1
+    fi
+    
+    # Check if file is readable
+    if [[ ! -r "$backup_path" ]]; then
+        print_error "File backup tidak dapat dibaca: $backup_path"
+        return 1
+    fi
+    
+    # Check file extension
+    local file_ext="${backup_path##*.}"
+    if [[ "$file_ext" != "sql" && "$file_ext" != "gz" ]]; then
+        print_warning "File backup tidak memiliki ekstensi .sql atau .gz"
+        echo -e "${YELLOW}Apakah Anda yakin ini adalah file backup database? (y/n)${NC}"
+        read -r confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            return 1
+        fi
+    fi
+    
+    # Check if it's a compressed file
+    if [[ "$file_ext" == "gz" ]]; then
+        if ! gzip -t "$backup_path" 2>/dev/null; then
+            print_error "File backup .gz corrupt atau tidak valid"
+            return 1
+        fi
+    else
+        # Basic check for SQL file
+        if ! head -n 10 "$backup_path" | grep -q -i "create\|insert\|database\|table" 2>/dev/null; then
+            print_warning "File backup tidak terlihat seperti file SQL database"
+            echo -e "${YELLOW}Apakah Anda yakin ini adalah file backup database? (y/n)${NC}"
+            read -r confirm
+            if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+                return 1
+            fi
+        fi
+    fi
+    
+    return 0
+}
+
+# Function to get user input for passwords and restore option
 get_user_input() {
+    print_header "KONFIGURASI INSTALASI"
+    
+    # Ask about database restore
+    echo -e "${BLUE}Apakah Anda ingin restore database dari backup?${NC}"
+    echo -e "${YELLOW}Tips: Kosongkan jika ingin instalasi baru (default)${NC}"
+    read -p "Masukkan path file backup database (tekan Enter untuk instalasi baru): " DB_RESTORE_PATH
+    
+    if [[ -n "$DB_RESTORE_PATH" ]]; then
+        # Expand tilde to home directory
+        DB_RESTORE_PATH="${DB_RESTORE_PATH/#\~/$HOME}"
+        
+        # Validate backup file
+        if validate_backup_file "$DB_RESTORE_PATH"; then
+            RESTORE_MODE=true
+            print_status "Mode: Restore database dari $DB_RESTORE_PATH"
+        else
+            print_error "Validasi file backup gagal"
+            exit 1
+        fi
+    else
+        print_status "Mode: Instalasi baru (tanpa restore)"
+    fi
+    
     print_header "KONFIGURASI PASSWORD"
     
     # Get MySQL root password
@@ -112,6 +184,10 @@ get_user_input() {
     fi
     
     print_status "Konfigurasi: Database=$WP_DB_NAME, User=$WP_DB_USER"
+    
+    if [[ "$RESTORE_MODE" == true ]]; then
+        print_status "File backup: $DB_RESTORE_PATH"
+    fi
 }
 
 # Function to backup existing files
@@ -162,7 +238,8 @@ install_packages() {
         unzip \
         wget \
         curl \
-        openssl >> "$LOG_FILE" 2>&1
+        openssl \
+        gzip >> "$LOG_FILE" 2>&1
     
     print_status "Mengaktifkan dan memulai layanan..."
     systemctl enable apache2 mariadb >> "$LOG_FILE" 2>&1
@@ -240,6 +317,57 @@ EOF
     fi
 }
 
+# Function to restore database from backup
+restore_database() {
+    print_header "RESTORE DATABASE DARI BACKUP"
+    
+    local backup_file="$1"
+    
+    print_status "Memulai restore database dari: $backup_file"
+    
+    # Check if file is compressed
+    if [[ "$backup_file" == *.gz ]]; then
+        print_status "File backup terkompresi, melakukan decompress..."
+        
+        if [[ -n "$MYSQL_ROOT_PASS" ]]; then
+            if gunzip -c "$backup_file" | mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASS" "$WP_DB_NAME"; then
+                print_status "Database berhasil di-restore dari file terkompresi"
+            else
+                print_error "Gagal restore database dari file terkompresi"
+                return 1
+            fi
+        else
+            if gunzip -c "$backup_file" | mysql -u "$MYSQL_USER" "$WP_DB_NAME"; then
+                print_status "Database berhasil di-restore dari file terkompresi"
+            else
+                print_error "Gagal restore database dari file terkompresi"
+                return 1
+            fi
+        fi
+    else
+        print_status "File backup tidak terkompresi, melakukan restore langsung..."
+        
+        if [[ -n "$MYSQL_ROOT_PASS" ]]; then
+            if mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASS" "$WP_DB_NAME" < "$backup_file"; then
+                print_status "Database berhasil di-restore"
+            else
+                print_error "Gagal restore database"
+                return 1
+            fi
+        else
+            if mysql -u "$MYSQL_USER" "$WP_DB_NAME" < "$backup_file"; then
+                print_status "Database berhasil di-restore"
+            else
+                print_error "Gagal restore database"
+                return 1
+            fi
+        fi
+    fi
+    
+    print_status "Restore database selesai"
+    return 0
+}
+
 # Function to setup WordPress database
 setup_database() {
     print_header "MENYIAPKAN DATABASE WORDPRESS"
@@ -290,6 +418,16 @@ EOF
     else
         print_error "Gagal membuat database WordPress"
         exit 1
+    fi
+    
+    # If restore mode is enabled, restore the database
+    if [[ "$RESTORE_MODE" == true ]]; then
+        if restore_database "$DB_RESTORE_PATH"; then
+            print_status "Database berhasil di-restore dari backup"
+        else
+            print_error "Gagal restore database dari backup"
+            exit 1
+        fi
     fi
 }
 
@@ -491,6 +629,8 @@ display_final_info() {
 === INFORMASI INSTALASI WORDPRESS ===
 
 Tanggal Instalasi: $(date)
+Mode Instalasi: $(if [[ "$RESTORE_MODE" == true ]]; then echo "Restore dari backup"; else echo "Instalasi baru"; fi)
+$(if [[ "$RESTORE_MODE" == true ]]; then echo "File Backup: $DB_RESTORE_PATH"; fi)
 
 Database:
 - Nama Database: $WP_DB_NAME
@@ -509,10 +649,17 @@ File Penting:
 - Info File: $INFO_FILE
 
 Langkah Selanjutnya:
-1. Buka browser dan akses salah satu URL di atas
-2. Ikuti wizard instalasi WordPress
-3. Buat akun admin WordPress
-4. Mulai menggunakan WordPress!
+$(if [[ "$RESTORE_MODE" == true ]]; then
+echo "1. Buka browser dan akses salah satu URL di atas"
+echo "2. Website seharusnya sudah ter-restore dari backup"
+echo "3. Login dengan kredensial dari backup database"
+echo "4. Verifikasi semua konten dan konfigurasi"
+else
+echo "1. Buka browser dan akses salah satu URL di atas"
+echo "2. Ikuti wizard instalasi WordPress"
+echo "3. Buat akun admin WordPress"
+echo "4. Mulai menggunakan WordPress!"
+fi)
 
 Catatan Keamanan:
 - Ganti password default setelah instalasi
@@ -520,6 +667,7 @@ Catatan Keamanan:
 - Install plugin keamanan
 - Backup database secara rutin
 $(if [[ -z "$MYSQL_ROOT_PASS" || -z "$WP_DB_PASS" ]]; then echo "- SET PASSWORD untuk MySQL dan database WordPress (saat ini tanpa password)"; fi)
+$(if [[ "$RESTORE_MODE" == true ]]; then echo "- Verifikasi konfigurasi keamanan setelah restore"; fi)
 EOF
     
     print_status "Informasi instalasi tersimpan di: $INFO_FILE"
@@ -531,6 +679,10 @@ EOF
     echo -e "${GREEN}║  • IP Lokal: http://$LOCAL_IP${NC}"
     echo -e "${GREEN}║  • IP Publik: http://$PUBLIC_IP${NC}"
     echo -e "${GREEN}║                                                           ║${NC}"
+    if [[ "$RESTORE_MODE" == true ]]; then
+        echo -e "${GREEN}║  Database berhasil di-restore dari backup                ║${NC}"
+        echo -e "${GREEN}║                                                           ║${NC}"
+    fi
     echo -e "${GREEN}║  Info lengkap tersimpan di: $INFO_FILE${NC}"
     
     if [[ -z "$MYSQL_ROOT_PASS" || -z "$WP_DB_PASS" ]]; then
@@ -559,14 +711,14 @@ main() {
     touch "$LOG_FILE"
     
     print_header "WORDPRESS AUTO INSTALLER"
-    print_status "WordPress Auto Installer dengan Custom Password"
+    print_status "WordPress Auto Installer dengan Custom Password dan Database Restore"
     print_status "Log file: $LOG_FILE"
     
     # Pre-installation checks
     check_root
     check_os
     
-    # Get user input for passwords
+    # Get user input for passwords and restore option
     get_user_input
     
     # Main installation steps
