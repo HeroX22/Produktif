@@ -140,15 +140,43 @@ secure_mariadb() {
         print_status "Password root MySQL yang dibuat: $MYSQL_ROOT_PASS"
     fi
     
-    # Secure MariaDB installation
+    # Check MariaDB version and use appropriate syntax
+    MARIADB_VERSION=$(mysql --version | grep -oP 'Distrib \K[0-9]+\.[0-9]+')
+    print_status "MariaDB version detected: $MARIADB_VERSION"
+    
+    # Secure MariaDB installation using modern syntax
     mysql -u root << EOF
-UPDATE mysql.user SET Password=PASSWORD('$MYSQL_ROOT_PASS') WHERE User='root';
+-- Set root password using ALTER USER (MariaDB 10.4+)
+ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PASS';
+
+-- Remove anonymous users
+DELETE FROM mysql.user WHERE User='';
+
+-- Remove root login from remote hosts
+DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+
+-- Remove test database
+DROP DATABASE IF EXISTS test;
+DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+
+-- Reload privilege tables
+FLUSH PRIVILEGES;
+EOF
+    
+    if [[ $? -eq 0 ]]; then
+        print_status "MariaDB berhasil diamankan"
+    else
+        print_warning "Gagal mengamankan MariaDB dengan ALTER USER, mencoba metode lama..."
+        # Fallback untuk versi lama
+        mysql -u root << EOF
+UPDATE mysql.user SET authentication_string=PASSWORD('$MYSQL_ROOT_PASS') WHERE User='root';
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
 DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 FLUSH PRIVILEGES;
 EOF
+    fi
     
     # Update MySQL_USER variable for subsequent operations
     MYSQL_USER="root"
@@ -165,14 +193,30 @@ setup_database() {
     fi
     
     # Create database and user
-    mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASS" << EOF
+    if [[ -n "$MYSQL_ROOT_PASS" ]]; then
+        # If root password is set, use it
+        mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASS" << EOF
 CREATE DATABASE IF NOT EXISTS $WP_DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '$WP_DB_USER'@'localhost' IDENTIFIED BY '$WP_DB_PASS';
 GRANT ALL PRIVILEGES ON $WP_DB_NAME.* TO '$WP_DB_USER'@'localhost';
 FLUSH PRIVILEGES;
 EOF
+    else
+        # If no root password (fresh installation), connect without password
+        mysql -u "$MYSQL_USER" << EOF
+CREATE DATABASE IF NOT EXISTS $WP_DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '$WP_DB_USER'@'localhost' IDENTIFIED BY '$WP_DB_PASS';
+GRANT ALL PRIVILEGES ON $WP_DB_NAME.* TO '$WP_DB_USER'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+    fi
     
-    print_status "Database dan user WordPress berhasil dibuat"
+    if [[ $? -eq 0 ]]; then
+        print_status "Database dan user WordPress berhasil dibuat"
+    else
+        print_error "Gagal membuat database WordPress"
+        exit 1
+    fi
 }
 
 # Function to download and install WordPress
