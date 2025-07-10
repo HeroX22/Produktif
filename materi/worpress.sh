@@ -756,8 +756,8 @@ uninstall_wordpress_stack() {
         rm -f /etc/apache2/sites-available/wordpress.conf
     fi
 
-    # Reload Apache
-    systemctl reload apache2 || true
+    # Reload service
+    systemctl start apache2 mariadb || true
 
     # Remove database and user
     print_status "Menghapus database dan user WordPress"
