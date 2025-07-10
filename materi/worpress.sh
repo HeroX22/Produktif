@@ -259,7 +259,13 @@ install_packages() {
     
     # Enable required Apache modules
     a2enmod rewrite >> "$LOG_FILE" 2>&1
-    a2enmod ssl >> "$LOG_FILE" 2>&1
+
+    # Hapus baris berikut:
+    # a2enmod ssl >> "$LOG_FILE" 2>&1
+
+    # Tambahkan instalasi certbot dan plugin apache
+    print_status "Menginstal Certbot untuk SSL Let's Encrypt..."
+    apt-get install -y certbot python3-certbot-apache >> "$LOG_FILE" 2>&1
 }
 
 # Function to secure MariaDB installation
@@ -729,6 +735,64 @@ cleanup_on_error() {
     exit 1
 }
 
+# Uninstaller function
+uninstall_wordpress_stack() {
+    print_header "UNINSTALL WORDPRESS & STACK"
+
+    # Stop Apache and MariaDB
+    print_status "Menghentikan layanan Apache dan MariaDB..."
+    systemctl stop apache2 mariadb || true
+
+    # Remove WordPress files
+    if [[ -d "$WP_DIR" ]]; then
+        print_status "Menghapus direktori WordPress: $WP_DIR"
+        rm -rf "$WP_DIR"/*
+    fi
+
+    # Remove Apache config
+    if [[ -f /etc/apache2/sites-available/wordpress.conf ]]; then
+        print_status "Menghapus konfigurasi Apache WordPress"
+        a2dissite wordpress.conf || true
+        rm -f /etc/apache2/sites-available/wordpress.conf
+    fi
+
+    # Reload Apache
+    systemctl reload apache2 || true
+
+    # Remove database and user
+    print_status "Menghapus database dan user WordPress"
+    if [[ -n "$MYSQL_ROOT_PASS" ]]; then
+        mysql -u "$MYSQL_USER" -p"$MYSQL_ROOT_PASS" <<EOF
+DROP DATABASE IF EXISTS $WP_DB_NAME;
+DROP USER IF EXISTS '$WP_DB_USER'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+    else
+        mysql -u "$MYSQL_USER" <<EOF
+DROP DATABASE IF EXISTS $WP_DB_NAME;
+DROP USER IF EXISTS '$WP_DB_USER'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+    fi
+
+    # Remove Certbot certificates if domain is set
+    if [[ -n "$WP_DOMAIN" ]]; then
+        print_status "Menghapus sertifikat SSL Let's Encrypt untuk $WP_DOMAIN"
+        certbot delete --cert-name "$WP_DOMAIN" --non-interactive || true
+    fi
+
+    # Remove log and info files
+    print_status "Menghapus file log dan info"
+    rm -f "$LOG_FILE" /root/wordpress_info.txt
+
+    print_status "Menghapus paket terkait (apache2, mariadb-server, php, certbot)..."
+    apt-get remove --purge -y apache2 mariadb-server php* certbot python3-certbot-apache unzip wget curl openssl gzip || true
+    apt-get autoremove -y || true
+
+    print_status "Uninstall selesai. WordPress dan stack telah dihapus."
+    exit 0
+}
+
 # Main execution
 main() {
     # Set up error handling
@@ -756,12 +820,19 @@ main() {
     configure_wordpress
     configure_apache
     setup_firewall
-    
+
+    # Tambahkan pemanggilan setup_ssl_certbot setelah apache dan firewall
+    setup_ssl_certbot
+
     # Final steps
     display_final_info
     
     print_status "Instalasi WordPress selesai!"
 }
 
-# Run main function
-main "$@"
+# Run main function or uninstaller
+if [[ "$1" == "uninstall" ]]; then
+    uninstall_wordpress_stack
+else
+    main "$@"
+fi
