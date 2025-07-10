@@ -639,6 +639,29 @@ setup_firewall() {
     fi
 }
 
+setup_ssl_certbot() {
+    print_header "MENGAKTIFKAN SSL LET'S ENCRYPT (CERTBOT)"
+    if [[ -n "$WP_DOMAIN" ]]; then
+        print_status "Mengecek domain: $WP_DOMAIN"
+        # Pastikan domain mengarah ke server ini
+        echo -e "${YELLOW}Pastikan domain $WP_DOMAIN sudah mengarah ke IP server ini sebelum melanjutkan.${NC}"
+        read -p "Lanjutkan setup SSL untuk $WP_DOMAIN? (y/n): " confirm_ssl
+        if [[ "$confirm_ssl" != "y" && "$confirm_ssl" != "Y" ]]; then
+            print_warning "Setup SSL dilewati."
+            return
+        fi
+
+        # Jalankan certbot untuk Apache
+        if certbot --apache -d "$WP_DOMAIN" -n --agree-tos --email admin@$WP_DOMAIN --redirect; then
+            print_status "SSL Let's Encrypt berhasil diaktifkan untuk $WP_DOMAIN"
+        else
+            print_warning "Gagal mengaktifkan SSL Let's Encrypt. Silakan cek konfigurasi domain dan ulangi manual jika perlu."
+        fi
+    else
+        print_warning "Domain tidak diisi, setup SSL dilewati."
+    fi
+}
+
 # Function to get IP addresses
 get_ip_addresses() {
     LOCAL_IP=$(hostname -I | awk '{print $1}')
@@ -786,7 +809,7 @@ EOF
     rm -f "$LOG_FILE" /root/wordpress_info.txt
 
     print_status "Menghapus paket terkait (apache2, mariadb-server, php, certbot)..."
-    apt-get remove --purge -y apache2 mariadb-server php* certbot python3-certbot-apache unzip wget curl openssl gzip || true
+    apt-get remove --purge -y apache2 mariadb-server php certbot python3-certbot-apache || true
     apt-get autoremove -y || true
 
     print_status "Uninstall selesai. WordPress dan stack telah dihapus."
