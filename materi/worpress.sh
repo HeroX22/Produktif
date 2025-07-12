@@ -816,7 +816,195 @@ EOF
     exit 0
 }
 
-# Main execution
+# =========================
+# FUNGSI PERBAIKAN PHP WORDPRESS
+# =========================
+
+# Fungsi untuk memperbaiki masalah PHP
+fix_php_processing() {
+    print_header "MEMPERBAIKI MASALAH PHP PROCESSING"
+    print_status "Memeriksa status modul PHP Apache..."
+    a2enmod php8.1 || a2enmod php8.0 || a2enmod php7.4 || a2enmod php
+    print_status "Memeriksa konfigurasi PHP di Apache..."
+    if [[ ! -f /etc/apache2/mods-enabled/php*.conf ]]; then
+        print_warning "Konfigurasi PHP tidak ditemukan, mencoba mengaktifkan..."
+        PHP_VERSION=$(php -v | head -n1 | cut -d' ' -f2 | cut -d'.' -f1,2)
+        print_status "Versi PHP terdeteksi: $PHP_VERSION"
+        a2enmod php$PHP_VERSION
+    fi
+    print_status "Memeriksa konfigurasi Apache untuk file PHP..."
+    if [[ ! -f /etc/apache2/conf-available/php.conf ]]; then
+        print_status "Membuat konfigurasi PHP untuk Apache..."
+        cat > /etc/apache2/conf-available/php.conf << 'EOF'
+<IfModule mod_php8.c>
+    <FilesMatch ".+\.ph(ar|p|tml)$">
+        SetHandler application/x-httpd-php
+    </FilesMatch>
+    <FilesMatch ".+\.phps$">
+        SetHandler application/x-httpd-php-source
+        Require all denied
+    </FilesMatch>
+    <FilesMatch "^\.ph(ar|p|ps|tml)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+<IfModule mod_php7.c>
+    <FilesMatch ".+\.ph(ar|p|tml)$">
+        SetHandler application/x-httpd-php
+    </FilesMatch>
+    <FilesMatch ".+\.phps$">
+        SetHandler application/x-httpd-php-source
+        Require all denied
+    </FilesMatch>
+    <FilesMatch "^\.ph(ar|p|ps|tml)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+EOF
+        a2enconf php
+    fi
+    print_status "Memeriksa DirectoryIndex..."
+    if ! grep -q "DirectoryIndex.*index\.php" /etc/apache2/apache2.conf; then
+        print_status "Menambahkan index.php ke DirectoryIndex..."
+        cp /etc/apache2/apache2.conf /etc/apache2/apache2.conf.backup
+        if grep -q "DirectoryIndex" /etc/apache2/apache2.conf; then
+            sed -i 's/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/' /etc/apache2/apache2.conf
+        else
+            echo "DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm" >> /etc/apache2/apache2.conf
+        fi
+    fi
+    print_status "Memeriksa konfigurasi virtual host WordPress..."
+    if [[ -f /etc/apache2/sites-available/wordpress.conf ]]; then
+        cp /etc/apache2/sites-available/wordpress.conf /etc/apache2/sites-available/wordpress.conf.backup
+        if ! grep -q "DirectoryIndex" /etc/apache2/sites-available/wordpress.conf; then
+            print_status "Menambahkan DirectoryIndex ke virtual host..."
+            sed -i '/<Directory \/var\/www\/html>/a\        DirectoryIndex index.php index.html' /etc/apache2/sites-available/wordpress.conf
+        fi
+    fi
+    print_status "Merestart layanan Apache..."
+    systemctl restart apache2
+    print_status "Menguji konfigurasi Apache..."
+    if apache2ctl configtest; then
+        print_status "Konfigurasi Apache valid"
+    else
+        print_error "Konfigurasi Apache tidak valid"
+        return 1
+    fi
+    print_status "Perbaikan selesai!"
+}
+
+# Fungsi untuk memeriksa status PHP
+check_php_status() {
+    print_header "MEMERIKSA STATUS PHP"
+    print_status "Versi PHP:"
+    php -v | head -n1
+    print_status "Modul PHP Apache yang aktif:"
+    apache2ctl -M | grep php || print_warning "Tidak ada modul PHP yang aktif"
+    print_status "File konfigurasi PHP:"
+    php --ini | grep "Loaded Configuration File"
+    print_status "Ekstensi PHP yang diperlukan untuk WordPress:"
+    php_extensions=("mysqli" "gd" "curl" "zip" "xml" "mbstring")
+    for ext in "${php_extensions[@]}"; do
+        if php -m | grep -q "$ext"; then
+            echo -e "${GREEN}✓${NC} $ext"
+        else
+            echo -e "${RED}✗${NC} $ext (tidak terinstal)"
+        fi
+    done
+}
+
+# Fungsi untuk membuat file test PHP
+create_php_test() {
+    print_header "MEMBUAT FILE TEST PHP"
+    cat > /var/www/html/phpinfo.php << 'EOF'
+<?php
+phpinfo();
+?>
+EOF
+    cat > /var/www/html/test.php << 'EOF'
+<?php
+echo "<h1>PHP Test</h1>";
+echo "<p>Jika Anda melihat pesan ini, PHP berfungsi dengan baik!</p>";
+echo "<p>Versi PHP: " . phpversion() . "</p>";
+echo "<p>Waktu server: " . date('Y-m-d H:i:s') . "</p>";
+?>
+EOF
+    chown www-data:www-data /var/www/html/phpinfo.php /var/www/html/test.php
+    chmod 644 /var/www/html/phpinfo.php /var/www/html/test.php
+    print_status "File test PHP dibuat:"
+    print_status "- http://your-domain-or-ip/phpinfo.php"
+    print_status "- http://your-domain-or-ip/test.php"
+}
+
+# Fungsi untuk reinstall PHP jika diperlukan
+reinstall_php() {
+    print_header "REINSTALL PHP DAN MODUL APACHE"
+    print_warning "Ini akan menginstall ulang PHP dan modul Apache"
+    read -p "Lanjutkan? (y/n): " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        print_status "Reinstall dibatalkan"
+        return 0
+    fi
+    print_status "Memperbarui daftar paket..."
+    apt-get update
+    print_status "Menginstall/reinstall PHP dan modul..."
+    apt-get install -y --reinstall \
+        php \
+        php-cli \
+        php-common \
+        php-gd \
+        php-curl \
+        php-mysql \
+        php-zip \
+        php-xml \
+        php-mbstring \
+        libapache2-mod-php
+    PHP_VERSION=$(php -v | head -n1 | cut -d' ' -f2 | cut -d'.' -f1,2)
+    a2enmod php$PHP_VERSION
+    systemctl restart apache2
+    print_status "Reinstall PHP selesai"
+}
+
+# Fungsi untuk menampilkan diagnostik lengkap
+full_diagnostic() {
+    print_header "DIAGNOSTIK LENGKAP"
+    print_status "=== Informasi Sistem ==="
+    lsb_release -a 2>/dev/null || cat /etc/os-release
+    print_status "=== Status Layanan ==="
+    systemctl status apache2 --no-pager -l || true
+    print_status "=== Modul Apache ==="
+    apache2ctl -M | grep -E "(php|rewrite|dir)" || true
+    print_status "=== Konfigurasi Apache ==="
+    apache2ctl -S || true
+    print_status "=== File PHP di WordPress ==="
+    ls -la /var/www/html/index.php 2>/dev/null || print_warning "index.php tidak ditemukan"
+    print_status "=== Log Error Apache ==="
+    tail -n 10 /var/log/apache2/error.log || true
+}
+
+# Menu utama perbaikan PHP
+show_php_fix_menu() {
+    print_header "MENU PERBAIKAN PHP WORDPRESS"
+    echo "1. Perbaiki masalah PHP processing (Recommended)"
+    echo "2. Periksa status PHP"
+    echo "3. Buat file test PHP"
+    echo "4. Reinstall PHP dan modul Apache"
+    echo "5. Diagnostik lengkap"
+    echo "6. Keluar"
+    echo
+    read -p "Pilih opsi (1-6): " choice
+    case $choice in
+        1) fix_php_processing ;;
+        2) check_php_status ;;
+        3) create_php_test ;;
+        4) reinstall_php ;;
+        5) full_diagnostic ;;
+        6) print_status "Keluar..."; exit 0 ;;
+        *) print_error "Pilihan tidak valid"; show_php_fix_menu ;;
+    esac
+}
+
+# Main execution WordPress
 main() {
     # Set up error handling
     trap cleanup_on_error ERR
@@ -853,9 +1041,21 @@ main() {
     print_status "Instalasi WordPress selesai!"
 }
 
-# Run main function or uninstaller
+# Jalankan fungsi utama WordPress atau uninstall
 if [[ "$1" == "uninstall" ]]; then
     uninstall_wordpress_stack
+elif [[ "$1" == "phpfix" ]]; then
+    show_php_fix_menu
+elif [[ "$1" == "fix" ]]; then
+    fix_php_processing
+elif [[ "$1" == "check" ]]; then
+    check_php_status
+elif [[ "$1" == "test" ]]; then
+    create_php_test
+elif [[ "$1" == "reinstall" ]]; then
+    reinstall_php
+elif [[ "$1" == "diagnostic" ]]; then
+    full_diagnostic
 else
     main "$@"
 fi
